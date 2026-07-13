@@ -55,6 +55,21 @@ The workflow's built-in `GITHUB_TOKEN` has write access only to this repository
 and is used to create the GitHub Release. No Supabase storage token is used for
 Kai or Vertex release publication.
 
+## Factory pre-release command
+
+GitHub's `latest` selector excludes pre-releases. For a factory candidate, save
+the versioned bootstrap, then pass that same tag explicitly:
+
+```powershell
+$tag = 'v1.0.0-rc.1'
+Invoke-WebRequest "https://github.com/Pallav0099/xrig-releases/releases/download/$tag/Install-Vertex.ps1" -OutFile .\Install-Vertex.ps1
+.\Install-Vertex.ps1 -ReleaseTag $tag
+```
+
+Use the equivalent `Install-Kai.ps1` command for Kai. This is only for factory
+and clean-runner pre-release validation; owner installation always uses the
+stable URLs below.
+
 ## Public stable URLs
 
 Once a pre-release is promoted to stable, the public installation endpoints are:
