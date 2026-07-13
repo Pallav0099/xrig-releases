@@ -269,13 +269,29 @@ jobs:
             if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing release artifact: $name" }
             if ((Get-Item -LiteralPath $path).Length -le 0) { throw "Empty release artifact: $name" }
           }
-          foreach ($name in @("xrig-identity-$($env:PLATFORM_VERSION)-win-x64.exe", "Vertex-$($env:VERTEX_VERSION)-win-x64.exe", "Vertex-install-$($env:VERTEX_VERSION)-win-x64.exe", "Kai-$($env:KAI_VERSION)-win-x64.exe")) {
+          foreach ($name in @("xrig-identity-$($env:PLATFORM_VERSION)-win-x64.exe", "Vertex-$($env:VERTEX_VERSION)-win-x64.exe", "Vertex-install-$($env:VERTEX_VERSION)-win-x64.exe")) {
             $bytes = [IO.File]::ReadAllBytes((Join-Path artifacts $name))
             if ($bytes.Length -lt 64 -or $bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) { throw "Expected Windows PE artifact: $name" }
             $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
             if ($peOffset -lt 0 -or $peOffset + 6 -ge $bytes.Length -or [BitConverter]::ToUInt16($bytes, $peOffset + 4) -ne 0x8664) {
               throw "Expected AMD64 PE artifact: $name"
             }
+          }
+          # NSIS emits a PE32 installer launcher even when its application payload
+          # is x64. Validate that launcher as a PE, then validate the actual Kai
+          # executable staged inside win-unpacked as AMD64.
+          $kaiInstaller = "Kai-$($env:KAI_VERSION)-win-x64.exe"
+          $kaiInstallerBytes = [IO.File]::ReadAllBytes((Join-Path artifacts $kaiInstaller))
+          if ($kaiInstallerBytes.Length -lt 64 -or $kaiInstallerBytes[0] -ne 0x4D -or $kaiInstallerBytes[1] -ne 0x5A) {
+            throw "Expected Windows NSIS installer: $kaiInstaller"
+          }
+          $kaiPayload = 'src/kai/apps/desktop/release/win-unpacked/kai.exe'
+          if (-not (Test-Path -LiteralPath $kaiPayload -PathType Leaf)) { throw 'Kai unpacked x64 executable is missing.' }
+          $kaiPayloadBytes = [IO.File]::ReadAllBytes($kaiPayload)
+          $kaiPayloadOffset = [BitConverter]::ToInt32($kaiPayloadBytes, 0x3C)
+          if ($kaiPayloadBytes.Length -lt 64 -or $kaiPayloadBytes[0] -ne 0x4D -or $kaiPayloadBytes[1] -ne 0x5A -or
+              $kaiPayloadOffset -lt 0 -or $kaiPayloadOffset + 6 -ge $kaiPayloadBytes.Length -or [BitConverter]::ToUInt16($kaiPayloadBytes, $kaiPayloadOffset + 4) -ne 0x8664) {
+            throw 'Expected AMD64 Kai executable inside the NSIS package.'
           }
           $config = Get-Content -LiteralPath artifacts\gemma4-12b-5060ti.json -Raw | ConvertFrom-Json
           if ($config.model.alias -ne 'gemma-4-12b-it') { throw 'Factory config does not expose gemma-4-12b-it.' }
@@ -315,8 +331,10 @@ jobs:
               & tools\xrig-keytool.exe sign --private-key $key --file $artifact.FullName --signature "$($artifact.FullName).sig"
               if ($LASTEXITCODE -ne 0) { throw "Signing failed: $($artifact.Name)" }
             }
+            $artifactRoot = (Resolve-Path artifacts).Path.TrimEnd('\\')
             $unsigned | Get-FileHash -Algorithm SHA256 | ForEach-Object {
-              "$($_.Hash.ToLowerInvariant())  $($_.Path.Replace((Resolve-Path artifacts).Path + '\\', ''))"
+              $relativePath = $_.Path.Substring($artifactRoot.Length).TrimStart('\\')
+              "$($_.Hash.ToLowerInvariant())  $relativePath"
             } | Set-Content -LiteralPath artifacts\SHA256SUMS.txt -Encoding ascii
             & tools\xrig-keytool.exe sign --private-key $key --file artifacts\SHA256SUMS.txt --signature artifacts\SHA256SUMS.txt.sig
             if ($LASTEXITCODE -ne 0) { throw 'Signing failed: SHA256SUMS.txt' }
