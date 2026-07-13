@@ -167,7 +167,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Could not sign the release-key coherence probe.' }
             $hash = (Get-FileHash -LiteralPath $probe -Algorithm SHA256).Hash.ToLowerInvariant()
             & tools\xrig-identity.exe --mode verify-artifact --file $probe --signature $signature --sha256 $hash --json | Out-Null
-            if ($LASTEXITCODE -ne 0) { throw 'The CI release key does not match XRIG Platform’s embedded release public key.' }
+            if ($LASTEXITCODE -ne 0) { throw 'The CI release key does not match the XRIG Platform embedded release public key.' }
           }
           finally {
             Remove-Item -LiteralPath $key, $probe, $signature -Force -ErrorAction SilentlyContinue
