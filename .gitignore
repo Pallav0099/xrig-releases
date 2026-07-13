@@ -1,0 +1,9 @@
+# Release payloads are GitHub Release assets, never Git objects.
+artifacts/
+*.exe
+*.zip
+*.tar.gz
+*.sig
+SHA256SUMS.txt
+xrig-release-v1.manifest
+xrig-release-v1.manifest.sig
