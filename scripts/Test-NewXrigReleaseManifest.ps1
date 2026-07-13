@@ -7,6 +7,7 @@ New-Item -ItemType Directory -Force -Path $temporary | Out-Null
 
 try {
     $files = @(
+        'xrig-identity-1.0.0-win-x64.exe',
         'Vertex-1.0.0-win-x64.exe',
         'cudart-llama-bin-win-cuda-12.4-x64.zip',
         'gemma4-12b-5060ti.json',
@@ -38,6 +39,9 @@ try {
     }
     if ($content -notmatch '(?m)^asset\.windows\.amd64\.factory_config\.verification=manifest$') {
         throw 'Factory configuration must use manifest verification.'
+    }
+    if ($content -notmatch '(?m)^asset\.windows\.amd64\.identity\.sig_path=xrig-identity-1\.0\.0-win-x64\.exe\.sig$') {
+        throw 'Platform identity detached signature is missing from the manifest.'
     }
     if ($content -notmatch '(?m)^asset\.windows\.amd64\.kai\.sig_path=Kai-1\.0\.0-win-x64\.exe\.sig$') {
         throw 'Kai package detached signature is missing from the manifest.'

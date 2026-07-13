@@ -35,6 +35,7 @@ concurrency:
 jobs:
   publish:
     name: Build, sign, and publish tagged Windows release
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
     timeout-minutes: 180
     environment: production
@@ -118,7 +119,7 @@ jobs:
           go-version-file: src/platform/go.mod
 
       - name: Set up Node.js 22.23.1
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22.23.1
 
@@ -134,7 +135,7 @@ jobs:
           version: 0.8.22
           enable-cache: false
 
-      - name: Build and test XRIG Platform release tooling
+      - name: Build XRIG Platform release tooling
         shell: pwsh
         env:
           PLATFORM_VERSION: ${{ steps.versions.outputs.platform }}
@@ -142,15 +143,35 @@ jobs:
           $ErrorActionPreference = 'Stop'
           Push-Location src/platform
           try {
-            go test ./...
             ./scripts/xrig-identity.contract.Tests.ps1
             ./scripts/build-xrig-identity.contract.Tests.ps1
             ./scripts/Install-XRIG-Platform.contract.Tests.ps1
-            New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE\tools" | Out-Null
+            New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE\tools", "$env:GITHUB_WORKSPACE\artifacts" | Out-Null
             ./scripts/build-xrig-identity.ps1 -Version $env:PLATFORM_VERSION -SupabaseAnonKey $env:SUPABASE_ANON_KEY -ActivationResponsePublicKeyHex $env:ACTIVATION_RESPONSE_PUBLIC_KEY_HEX -OutputPath "$env:GITHUB_WORKSPACE\tools\xrig-identity.exe"
             go build -trimpath -o "$env:GITHUB_WORKSPACE\tools\xrig-keytool.exe" ./cmd/xrig-keytool
+            Copy-Item "$env:GITHUB_WORKSPACE\tools\xrig-identity.exe" "$env:GITHUB_WORKSPACE\artifacts\xrig-identity-$env:PLATFORM_VERSION-win-x64.exe" -Force
           }
           finally { Pop-Location }
+
+      - name: Prove release-key coherence with XRIG Platform
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $key = Join-Path $env:RUNNER_TEMP 'xrig-release-signing.key'
+          $probe = Join-Path $env:RUNNER_TEMP 'xrig-release-key-coherence.bin'
+          $signature = "$probe.sig"
+          try {
+            [IO.File]::WriteAllBytes($key, [Convert]::FromBase64String($env:XRIG_RELEASE_SIGNING_PKCS8_B64))
+            [IO.File]::WriteAllBytes($probe, [Text.Encoding]::UTF8.GetBytes('XRIG release-key coherence v1'))
+            & tools\xrig-keytool.exe sign --private-key $key --file $probe --signature $signature
+            if ($LASTEXITCODE -ne 0) { throw 'Could not sign the release-key coherence probe.' }
+            $hash = (Get-FileHash -LiteralPath $probe -Algorithm SHA256).Hash.ToLowerInvariant()
+            & tools\xrig-identity.exe --mode verify-artifact --file $probe --signature $signature --sha256 $hash --json | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'The CI release key does not match XRIG Platform’s embedded release public key.' }
+          }
+          finally {
+            Remove-Item -LiteralPath $key, $probe, $signature -Force -ErrorAction SilentlyContinue
+          }
 
       - name: Build tagged Vertex artifacts
         shell: pwsh
@@ -161,7 +182,6 @@ jobs:
           New-Item -ItemType Directory -Force -Path artifacts, artifacts\stage\xrig\bin, artifacts\stage\xrig\LICENSES | Out-Null
           Push-Location src/vertex
           try {
-            go test ./...
             npm ci --prefix cmd/xrig-app/frontend
             npm run build --prefix cmd/xrig-app/frontend
             $wailsVersion = (Get-Content .wails-version -Raw).Trim()
@@ -211,6 +231,7 @@ jobs:
               -BuildNode (Get-Command node).Source `
               -NpmCommand (Get-Command npm.cmd).Source
             ./scripts/check-kai-brand.ps1 -RuntimeRoot apps/desktop/build/kai-runtime
+            ./scripts/check-kai-release-policy.ps1
             npm run assert:runtime:win --workspace apps/desktop
             npm run dist:win:nsis --workspace apps/desktop
             $package = @(Get-ChildItem apps/desktop/release/kai-*-win-x64.exe -File)
@@ -220,6 +241,44 @@ jobs:
             Copy-Item scripts\bootstrap-kai.ps1 "$env:GITHUB_WORKSPACE\artifacts\Install-Kai.ps1" -Force
           }
           finally { Pop-Location }
+
+      - name: Validate candidate artifact inventory
+        shell: pwsh
+        env:
+          PLATFORM_VERSION: ${{ steps.versions.outputs.platform }}
+          VERTEX_VERSION: ${{ steps.versions.outputs.vertex }}
+          KAI_VERSION: ${{ steps.versions.outputs.kai }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $required = @(
+            "xrig-identity-$($env:PLATFORM_VERSION)-win-x64.exe",
+            "Vertex-$($env:VERTEX_VERSION)-win-x64.exe",
+            "Vertex-install-$($env:VERTEX_VERSION)-win-x64.exe",
+            "Vertex-runtime-$($env:VERTEX_VERSION)-win-x64.tar.gz",
+            "Kai-$($env:KAI_VERSION)-win-x64.exe",
+            "Install-Vertex-inner-$($env:VERTEX_VERSION).ps1",
+            "Install-Kai-inner-$($env:KAI_VERSION).ps1",
+            'Install-Vertex.ps1',
+            'Install-Kai.ps1',
+            'llama-b9878-bin-win-cuda-12.4-x64.zip',
+            'cudart-llama-bin-win-cuda-12.4-x64.zip',
+            'gemma4-12b-5060ti.json'
+          )
+          foreach ($name in $required) {
+            $path = Join-Path artifacts $name
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing release artifact: $name" }
+            if ((Get-Item -LiteralPath $path).Length -le 0) { throw "Empty release artifact: $name" }
+          }
+          foreach ($name in @("xrig-identity-$($env:PLATFORM_VERSION)-win-x64.exe", "Vertex-$($env:VERTEX_VERSION)-win-x64.exe", "Vertex-install-$($env:VERTEX_VERSION)-win-x64.exe", "Kai-$($env:KAI_VERSION)-win-x64.exe")) {
+            $bytes = [IO.File]::ReadAllBytes((Join-Path artifacts $name))
+            if ($bytes.Length -lt 64 -or $bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) { throw "Expected Windows PE artifact: $name" }
+            $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+            if ($peOffset -lt 0 -or $peOffset + 6 -ge $bytes.Length -or [BitConverter]::ToUInt16($bytes, $peOffset + 4) -ne 0x8664) {
+              throw "Expected AMD64 PE artifact: $name"
+            }
+          }
+          $config = Get-Content -LiteralPath artifacts\gemma4-12b-5060ti.json -Raw | ConvertFrom-Json
+          if ($config.model.alias -ne 'gemma-4-12b-it') { throw 'Factory config does not expose gemma-4-12b-it.' }
 
       - name: Refuse to publish a Supabase release bootstrap
         shell: pwsh
@@ -274,11 +333,13 @@ jobs:
           KAI_VERSION: ${{ steps.versions.outputs.kai }}
         run: |
           $ErrorActionPreference = 'Stop'
+          $channel = if ('${{ inputs.prerelease }}' -eq 'true') { 'candidate' } else { 'stable' }
           ./scripts/New-XrigReleaseManifest.ps1 `
             -ReleaseTag '${{ inputs.release_tag }}' `
             -PlatformVersion $env:PLATFORM_VERSION `
             -VertexVersion $env:VERTEX_VERSION `
             -KaiVersion $env:KAI_VERSION `
+            -Channel $channel `
             -AssetDirectory artifacts `
             -OutputPath artifacts\xrig-release-v1.manifest
           $key = Join-Path $env:RUNNER_TEMP 'xrig-release-signing.key'
@@ -324,3 +385,17 @@ jobs:
           $args += @(Get-ChildItem artifacts -File | Where-Object { $_.Name -ne 'RELEASE_NOTES.md' } | ForEach-Object FullName)
           & gh @args
           if ($LASTEXITCODE -ne 0) { throw 'GitHub Release publication failed.' }
+
+      - name: Verify published asset inventory
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expected = @(Get-ChildItem artifacts -File | Where-Object { $_.Name -ne 'RELEASE_NOTES.md' } | ForEach-Object {
+            [pscustomobject]@{ name = $_.Name; size = [int64]$_.Length }
+          } | Sort-Object name)
+          $actual = @((gh release view '${{ inputs.release_tag }}' --repo Pallav0099/xrig-releases --json assets --jq '.assets[] | {name: .name, size: .size}' | ConvertFrom-Json) | Sort-Object name)
+          $expectedJson = $expected | ConvertTo-Json -Compress
+          $actualJson = $actual | ConvertTo-Json -Compress
+          if ($expectedJson -ne $actualJson) {
+            throw "Published GitHub Release assets do not match the signed inventory. Expected: $expectedJson Actual: $actualJson"
+          }

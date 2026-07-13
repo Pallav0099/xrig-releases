@@ -12,15 +12,17 @@ authority; GitHub's `latest` route is only a download selector.
 ## What is published
 
 - `Install-Kai.ps1` and `Install-Vertex.ps1` public bootstraps;
-- Kai and Vertex Windows binaries and their verified inner installers;
+- the signed `xrig-identity.exe` verifier, Kai and Vertex Windows binaries, and
+  their verified inner installers;
 - locked llama.cpp/CUDA runtime archives;
 - the factory model configuration (model bytes download directly from the
   pinned public Hugging Face entries in that configuration);
 - an Ed25519 signature for every release payload and the canonical manifest.
 
-`xrig-identity.exe`, Register, Activate, and Reactivate are not published here.
-They stay on XRIG Platform's private factory/support path. Product installers
-only proceed after the installed Platform passes local Verify and its online
+The release copy of `xrig-identity.exe` is a signed verifier/repair artifact;
+it is not an activation bootstrap. Register, Activate, and Reactivate remain on
+XRIG Platform's private factory/support path. Product installers only proceed
+after the already installed Platform passes local Verify and its online
 active-device check.
 
 ## Release workflow

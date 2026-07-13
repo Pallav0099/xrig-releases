@@ -59,6 +59,7 @@ function Get-AssetMetadata([string]$Id, [string]$FileName, [string]$Version, [st
 }
 
 $assets = @(
+    (Get-AssetMetadata 'windows.amd64.identity' "xrig-identity-$PlatformVersion-win-x64.exe" $PlatformVersion 'detached-ed25519'),
     (Get-AssetMetadata 'windows.amd64.app' "Vertex-$VertexVersion-win-x64.exe" $VertexVersion 'detached-ed25519'),
     (Get-AssetMetadata 'windows.amd64.cudart' 'cudart-llama-bin-win-cuda-12.4-x64.zip' 'b9878' 'detached-ed25519'),
     (Get-AssetMetadata 'windows.amd64.factory_config' 'gemma4-12b-5060ti.json' $VertexVersion 'manifest'),
