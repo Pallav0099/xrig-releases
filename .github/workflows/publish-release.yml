@@ -44,7 +44,6 @@ jobs:
       XRIG_RELEASE_SIGNING_PKCS8_B64: ${{ secrets.XRIG_RELEASE_SIGNING_PKCS8_B64 }}
       SUPABASE_ANON_KEY: ${{ vars.XRIG_SUPABASE_ANON_KEY }}
       ACTIVATION_RESPONSE_PUBLIC_KEY_HEX: ${{ vars.XRIG_ACTIVATION_RESPONSE_PUBLIC_KEY_HEX }}
-      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Check out release orchestration
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -218,6 +217,10 @@ jobs:
         shell: pwsh
         env:
           KAI_VERSION: ${{ steps.versions.outputs.kai }}
+          # Kai has no Electron auto-updater. Keep GitHub credentials out of
+          # electron-builder even if a future job-level token is added.
+          GH_TOKEN: ''
+          GITHUB_TOKEN: ''
         run: |
           $ErrorActionPreference = 'Stop'
           Push-Location src/kai
@@ -382,6 +385,7 @@ jobs:
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ steps.versions.outputs.release }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
           if (& gh release view '${{ inputs.release_tag }}' --repo Pallav0099/xrig-releases 2>$null) {
@@ -409,6 +413,8 @@ jobs:
 
       - name: Verify published asset inventory
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
           $expected = @(Get-ChildItem artifacts -File | Where-Object { $_.Name -ne 'RELEASE_NOTES.md' } | ForEach-Object {
