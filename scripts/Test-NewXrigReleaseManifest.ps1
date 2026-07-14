@@ -15,6 +15,8 @@ try {
         'Kai-1.0.0-win-x64.exe',
         'Install-Kai-inner-1.0.0.ps1',
         'llama-b9878-bin-win-cuda-12.4-x64.zip',
+        'llama-b9999-bin-win-vulkan-x64.zip',
+        'llama-b9999-bin-win-openvino-2026.2.1-x64.zip',
         'Vertex-runtime-1.0.0-win-x64.tar.gz',
         'Install-Vertex-inner-1.0.0.ps1'
     )
@@ -47,6 +49,11 @@ try {
     }
     if ($content -notmatch '(?m)^asset\.windows\.amd64\.kai\.sig_path=Kai-1\.0\.0-win-x64\.exe\.sig$') {
         throw 'Kai package detached signature is missing from the manifest.'
+    }
+    foreach ($backend in @('llama_vulkan', 'llama_openvino')) {
+        if ($content -notmatch "(?m)^asset\.windows\.amd64\.$backend\.verification=detached-ed25519$") {
+            throw "Manifest is missing the signed $backend runtime."
+        }
     }
 }
 finally {

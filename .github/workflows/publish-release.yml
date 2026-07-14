@@ -213,10 +213,14 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $tag = 'b9878'
-          $names = @('llama-b9878-bin-win-cuda-12.4-x64.zip', 'cudart-llama-bin-win-cuda-12.4-x64.zip')
-          foreach ($name in $names) {
-            Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/ggml-org/llama.cpp/releases/download/$tag/$name" -OutFile (Join-Path $env:GITHUB_WORKSPACE "artifacts\$name")
+          $archives = @(
+            @{ tag = 'b9878'; name = 'llama-b9878-bin-win-cuda-12.4-x64.zip' },
+            @{ tag = 'b9878'; name = 'cudart-llama-bin-win-cuda-12.4-x64.zip' },
+            @{ tag = 'b9999'; name = 'llama-b9999-bin-win-vulkan-x64.zip' },
+            @{ tag = 'b9999'; name = 'llama-b9999-bin-win-openvino-2026.2.1-x64.zip' }
+          )
+          foreach ($archive in $archives) {
+            Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/ggml-org/llama.cpp/releases/download/$($archive.tag)/$($archive.name)" -OutFile (Join-Path $env:GITHUB_WORKSPACE "artifacts\$($archive.name)")
           }
 
       - name: Build tagged Kai artifact
@@ -274,6 +278,8 @@ jobs:
             'Install-Kai.ps1',
             'llama-b9878-bin-win-cuda-12.4-x64.zip',
             'cudart-llama-bin-win-cuda-12.4-x64.zip',
+            'llama-b9999-bin-win-vulkan-x64.zip',
+            'llama-b9999-bin-win-openvino-2026.2.1-x64.zip',
             'gemma4-12b-5060ti.json'
           )
           foreach ($name in $required) {

@@ -67,6 +67,8 @@ $assets = @(
     (Get-AssetMetadata 'windows.amd64.kai' "Kai-$KaiVersion-win-x64.exe" $KaiVersion 'detached-ed25519'),
     (Get-AssetMetadata 'windows.amd64.kai_installer' "Install-Kai-inner-$KaiVersion.ps1" $KaiVersion 'detached-ed25519'),
     (Get-AssetMetadata 'windows.amd64.llama_cuda' 'llama-b9878-bin-win-cuda-12.4-x64.zip' 'b9878' 'detached-ed25519'),
+    (Get-AssetMetadata 'windows.amd64.llama_openvino' 'llama-b9999-bin-win-openvino-2026.2.1-x64.zip' 'b9999' 'detached-ed25519'),
+    (Get-AssetMetadata 'windows.amd64.llama_vulkan' 'llama-b9999-bin-win-vulkan-x64.zip' 'b9999' 'detached-ed25519'),
     (Get-AssetMetadata 'windows.amd64.package' "Vertex-runtime-$VertexVersion-win-x64.tar.gz" $VertexVersion 'detached-ed25519'),
     (Get-AssetMetadata 'windows.amd64.vertex_installer' "Install-Vertex-inner-$VertexVersion.ps1" $VertexVersion 'detached-ed25519')
 )
