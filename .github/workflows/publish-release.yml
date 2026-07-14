@@ -48,6 +48,10 @@ jobs:
       - name: Check out release orchestration
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Validate release workflow contract
+        shell: pwsh
+        run: ./scripts/Test-PublishReleaseWorkflow.ps1
+
       - name: Validate inputs and protected configuration
         id: versions
         shell: pwsh
@@ -388,7 +392,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
-          if (& gh release view '${{ inputs.release_tag }}' --repo Pallav0099/xrig-releases 2>$null) {
+          $releaseTags = @(& gh release list --repo Pallav0099/xrig-releases --limit 1000 --json tagName --jq '.[].tagName')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not query existing GitHub Releases.' }
+          if ($releaseTags -contains '${{ inputs.release_tag }}') {
             throw "GitHub Release ${{ inputs.release_tag }} already exists. Immutable release assets must not be replaced."
           }
           $manifestHash = (Get-FileHash -LiteralPath artifacts\xrig-release-v1.manifest -Algorithm SHA256).Hash.ToLowerInvariant()
