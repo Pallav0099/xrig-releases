@@ -101,7 +101,9 @@ foreach ($asset in $assets) {
     $values["$prefix.version"] = $asset.version
 }
 
-$lines = foreach ($key in @($values.Keys | Sort-Object)) {
+$keys = [string[]]@($values.Keys)
+[Array]::Sort($keys, [StringComparer]::Ordinal)
+$lines = foreach ($key in $keys) {
     "$key=$($values[$key])"
 }
 

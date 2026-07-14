@@ -57,6 +57,10 @@ $jobHeader = $content.Substring(0, $firstStep)
 Assert-True ($jobHeader -notmatch '(?m)^\s+GH_TOKEN:') 'GH_TOKEN must not be exposed at job scope.'
 Assert-True ($jobHeader -notmatch '(?m)^\s+GITHUB_TOKEN:') 'GITHUB_TOKEN must not be exposed at job scope.'
 
+$contractStep = Get-StepBlock $content 'Validate release workflow contract'
+Assert-True ($contractStep -match 'Test-PublishReleaseWorkflow\.ps1') 'Release workflow contract test must run before builds.'
+Assert-True ($contractStep -match 'Test-NewXrigReleaseManifest\.ps1') 'Manifest canonicalization test must run before builds.'
+
 $kaiStep = Get-StepBlock $content 'Build tagged Kai artifact'
 Assert-True ($kaiStep -match "(?m)^          GH_TOKEN: ''\r?$") 'Kai build must explicitly clear GH_TOKEN.'
 Assert-True ($kaiStep -match "(?m)^          GITHUB_TOKEN: ''\r?$") 'Kai build must explicitly clear GITHUB_TOKEN.'
@@ -66,6 +70,8 @@ $publishStep = Get-StepBlock $content 'Publish immutable GitHub Release assets'
 Assert-True ($publishStep -match '(?m)^          GH_TOKEN: \$\{\{ github\.token \}\}\r?$') 'GitHub token must be scoped to the release publication step.'
 Assert-True ($publishStep -match 'gh release list') 'Release existence check must use a non-failing release listing command.'
 Assert-True ($publishStep -notmatch 'if \(& gh release view') 'Release publication must not probe a missing release with a strict native command.'
+Assert-True ($publishStep -match 'Manifest SHA-256: \$manifestHash') 'Release notes must include the evaluated manifest hash.'
+Assert-True ($publishStep -notmatch 'Manifest SHA-256: `\$manifestHash') 'Release notes must not escape manifest-hash interpolation.'
 
 $verifyStep = Get-StepBlock $content 'Verify published asset inventory'
 Assert-True ($verifyStep -match '(?m)^          GH_TOKEN: \$\{\{ github\.token \}\}\r?$') 'GitHub token must be scoped to the published-inventory step.'

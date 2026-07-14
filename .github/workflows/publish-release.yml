@@ -50,7 +50,9 @@ jobs:
 
       - name: Validate release workflow contract
         shell: pwsh
-        run: ./scripts/Test-PublishReleaseWorkflow.ps1
+        run: |
+          ./scripts/Test-PublishReleaseWorkflow.ps1
+          ./scripts/Test-NewXrigReleaseManifest.ps1
 
       - name: Validate inputs and protected configuration
         id: versions
@@ -406,7 +408,7 @@ jobs:
           - Vertex: ${{ inputs.vertex_tag }} ($env:VERTEX_SHA)
           - Kai: ${{ inputs.kai_tag }} ($env:KAI_SHA)
 
-          Manifest SHA-256: `$manifestHash`
+          Manifest SHA-256: $manifestHash
 
           Every executable and installer must pass local XRIG Platform identity
           verification plus detached Ed25519 and SHA-256 validation before use.

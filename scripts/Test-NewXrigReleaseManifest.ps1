@@ -33,7 +33,9 @@ try {
     $content = [System.IO.File]::ReadAllText($manifest, [System.Text.UTF8Encoding]::new($false))
     if ($content.Contains("`r")) { throw 'Manifest must use LF line endings.' }
     $keys = @($content.Trim().Split("`n") | ForEach-Object { ($_ -split '=', 2)[0] })
-    if ((@($keys | Sort-Object) -join "`n") -ne ($keys -join "`n")) { throw 'Manifest keys are not lexically sorted.' }
+    $expectedKeys = [string[]]$keys.Clone()
+    [Array]::Sort($expectedKeys, [StringComparer]::Ordinal)
+    if (($expectedKeys -join "`n") -ne ($keys -join "`n")) { throw 'Manifest keys are not in canonical ordinal order.' }
     if ($content -notmatch '(?m)^base_url=https://github\.com/Pallav0099/xrig-releases/releases/download/v1\.0\.0$') {
         throw 'Manifest base URL is not the versioned GitHub Release path.'
     }
