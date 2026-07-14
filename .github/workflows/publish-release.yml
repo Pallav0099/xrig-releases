@@ -233,7 +233,10 @@ jobs:
             ./scripts/check-kai-brand.ps1 -RuntimeRoot apps/desktop/build/kai-runtime
             ./scripts/check-kai-release-policy.ps1
             npm run assert:runtime:win --workspace apps/desktop
-            npm run dist:win:nsis --workspace apps/desktop
+            # electron-builder treats CI=true as an implicit publish request
+            # unless this is explicit. XRIG publishes the verified assets itself
+            # later in this workflow, so the package build must never publish.
+            npm run dist:win:nsis --workspace apps/desktop -- --publish never
             $package = @(Get-ChildItem apps/desktop/release/kai-*-win-x64.exe -File)
             if ($package.Count -ne 1) { throw 'Expected exactly one Kai NSIS package.' }
             Copy-Item $package[0].FullName "$env:GITHUB_WORKSPACE\artifacts\Kai-$env:KAI_VERSION-win-x64.exe" -Force
