@@ -30,9 +30,9 @@ active-device check.
 Run `.github/workflows/publish-release.yml` manually from this repository. It
 requires exact **tags**, not branches, for the three private source repositories:
 
-- `Pallav0099/xrig-platform`
-- `Pallav0099/xrig-llama-backend`
-- `Pallav0099/kai`
+- `xrigpc/xrig-platform`
+- `xrigpc/xrig-llama-backend`
+- `xrigpc/kai`
 
 The workflow checks out those tags with a read-only source token, compiles the
 Windows artifacts, validates the signed manifest with the Platform verifier,

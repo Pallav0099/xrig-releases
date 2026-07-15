@@ -8,15 +8,15 @@ on:
         required: true
         type: string
       platform_tag:
-        description: Exact annotated/lightweight tag in Pallav0099/xrig-platform
+        description: Exact annotated/lightweight tag in xrigpc/xrig-platform
         required: true
         type: string
       vertex_tag:
-        description: Exact annotated/lightweight tag in Pallav0099/xrig-llama-backend
+        description: Exact annotated/lightweight tag in xrigpc/xrig-llama-backend
         required: true
         type: string
       kai_tag:
-        description: Exact annotated/lightweight tag in Pallav0099/kai
+        description: Exact annotated/lightweight tag in xrigpc/kai
         required: true
         type: string
       prerelease:
@@ -80,7 +80,7 @@ jobs:
       - name: Check out tagged XRIG Platform source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: Pallav0099/xrig-platform
+          repository: xrigpc/xrig-platform
           ref: ${{ inputs.platform_tag }}
           token: ${{ secrets.XRIG_SOURCE_READ_TOKEN }}
           persist-credentials: false
@@ -89,7 +89,7 @@ jobs:
       - name: Check out tagged Vertex source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: Pallav0099/xrig-llama-backend
+          repository: xrigpc/xrig-llama-backend
           ref: ${{ inputs.vertex_tag }}
           token: ${{ secrets.XRIG_SOURCE_READ_TOKEN }}
           persist-credentials: false
@@ -98,7 +98,7 @@ jobs:
       - name: Check out tagged Kai source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: Pallav0099/kai
+          repository: xrigpc/kai
           ref: ${{ inputs.kai_tag }}
           token: ${{ secrets.XRIG_SOURCE_READ_TOKEN }}
           persist-credentials: false
